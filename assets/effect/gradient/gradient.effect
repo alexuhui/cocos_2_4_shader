@@ -11,6 +11,9 @@ CCEffect %{
         cullMode: none
       properties:
         texture: { value: white }
+        alphaThreshold: { value: 0.5 }
+        outlineSize: { value: 0.0 }
+        outlineColor: { value: [1, 1, 1, 1] }
         startColor: { value: [1, 0, 0, 1], editor: { type: color } }
         endColor: { value: [0, 0, 1, 1], editor: { type: color } }
         coefficient: { value: 0.5 }
@@ -51,6 +54,10 @@ CCProgram vs %{
 }%
 
 CCProgram fs %{
+  #if CC_SUPPORT_standard_derivatives
+    #extension GL_OES_standard_derivatives : enable
+  #endif
+
   precision highp float;
 
   #include <alpha-test>
@@ -63,6 +70,13 @@ CCProgram fs %{
   uniform sampler2D texture;
   #endif
 
+  #if USE_SDF
+  uniform Outline {
+    vec4 outlineColor;
+    float outlineSize;
+  };
+  #endif
+
   uniform UniformBlock {
     vec4 startColor;
     vec4 endColor;
@@ -71,6 +85,37 @@ CCProgram fs %{
   };
 
   void main() {
+  #if USE_SDF
+    #if USE_TEXTURE_ALPHAONLY
+      float dist = texture(texture, v_uv0).a;
+    #else
+      float dist = texture(texture, v_uv0).r;
+    #endif
+
+    #if USE_SDF_EXTEND
+      const float EDGE_VALUE = 0.45;
+    #else
+      const float EDGE_VALUE = 0.5;
+    #endif
+
+    #if CC_SUPPORT_standard_derivatives
+      float smoothing = fwidth(dist);
+    #else
+      float smoothing = 0.05;
+    #endif
+
+    float outEdge = EDGE_VALUE - outlineSize;
+    float bg = smoothstep(outEdge - smoothing, outEdge, dist);
+    float fg = smoothstep(EDGE_VALUE - smoothing, EDGE_VALUE, dist);
+
+    float factor = gradientDirection > 0.5 ? v_uv0.y : v_uv0.x;
+    vec4 gradientColor = mix(startColor, endColor, factor);
+
+    vec4 textColor = v_color * gradientColor;
+    vec4 fgColor = outlineColor * (1.0 - fg) + textColor * fg;
+    gl_FragColor = vec4(fgColor.rgb, fgColor.a * bg);
+
+  #else
     vec4 o = vec4(1, 1, 1, 1);
 
     #if USE_TEXTURE
@@ -90,5 +135,6 @@ CCProgram fs %{
     #else
       gl_FragColor = o.rgba;
     #endif
+  #endif
   }
 }%

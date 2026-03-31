@@ -16,18 +16,18 @@
         "startColor": {
           "__type__": "cc.Color",
           "r": 255,
-          "g": 245,
-          "b": 205,
+          "g": 255,
+          "b": 255,
           "a": 255
         },
         "endColor": {
           "__type__": "cc.Color",
-          "r": 255,
-          "g": 233,
-          "b": 134,
+          "r": 0,
+          "g": 0,
+          "b": 255,
           "a": 255
         },
-        "coefficient": 0.5,
+        "coefficient": 0,
         "gradientDirection": 1
       }
     }
